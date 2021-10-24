@@ -83,6 +83,11 @@ const modelString2Object = (modelString) => {
               };
               if (id !== "vt") {
                 pos.z = parseFloat(posArr[2]);
+              } else {
+                if(pos.x > 1 || pos.x < 0 || pos.y > 1 || pos.y < 0){
+                  debugger;
+                  throw new Error("Textures Are Not In Normalized Space!!!");
+                }
               }
               verticesData[modelEnum[id]].push(pos);
             }

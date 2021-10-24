@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import Triangle from "../../Assets/Textured_Cube.obj";
-import Texture from "../../Assets/T2.png";
+import Texture from "../../Assets/T5.png";
 import objFile2Object from "./ObjFileMapper";
 import { VectorMaths, MatrixMaths, MatrixVectorMaths } from "./RenderMaths";
 
@@ -81,6 +81,20 @@ class Render3D extends Component {
     });
   };
 
+  getPixelColor = (imageData, x, y) => {
+    const color = { r: 1, g: 1, b: 1, a: 1 };
+    x = Math.floor(x);
+    y = Math.floor(y);
+
+    var index = (y * imageData.width + x) * 4;
+    color.r = imageData.data[index];
+    color.g = imageData.data[index + 1];
+    color.b = imageData.data[index + 2];
+    color.a = imageData.data[index + 3];
+
+    return color;
+  };
+
   rotateModelAnim = (model, fTheta) => {
     const vm = new VectorMaths();
     const mm = new MatrixMaths();
@@ -94,7 +108,7 @@ class Render3D extends Component {
     const cameraMatrix = mvm.Matrix_PointAt(rd.vCamera, rd.vTarget(), rd.vUp);
     const viewMatrix = mm.QuickInverse(cameraMatrix);
 
-    const projMatrix = mm.Projection(75, cd.height / cd.width, 1, 1000000);
+    const projMatrix = mm.Projection(75, cd.height / cd.width, 1, 1000);
     const xRotMatrix = mm.RotationX(fTheta);
     const zRotMatrix = mm.RotationZ(fTheta * 0.5);
     const yRotMatrix = mm.RotationY(180 * 0.0174533);
@@ -175,17 +189,17 @@ class Render3D extends Component {
           tex3 = { ...tri.tex3 };
           faceColor = tri.faceColor;
 
-          tex1.x = tex1.x / pos1.w;
-          tex2.x = tex2.x / pos2.w;
-          tex3.x = tex3.x / pos3.w;
+          // tex1.x = tex1.x / pos1.w;
+          // tex2.x = tex2.x / pos2.w;
+          // tex3.x = tex3.x / pos3.w;
 
-          tex1.y = tex1.y / pos1.w;
-          tex2.y = tex2.y / pos2.w;
-          tex3.y = tex3.y / pos3.w;
+          // tex1.y = tex1.y / pos1.w;
+          // tex2.y = tex2.y / pos2.w;
+          // tex3.y = tex3.y / pos3.w;
 
-          tex1.w = 1 / pos1.w;
-          tex2.w = 1 / pos2.w;
-          tex3.w = 1 / pos3.w;
+          // tex1.w = 1 / pos1.w;
+          // tex2.w = 1 / pos2.w;
+          // tex3.w = 1 / pos3.w;
 
           //Scale Into View
           pos1 = vm.Divide(pos1, pos1.w);
@@ -290,6 +304,9 @@ class Render3D extends Component {
           for (let i = 0; i < trisToAdd; i++) {
             listTris.push(clipped[i]);
           }
+          if (trisToAdd > 1) {
+            debugger;
+          }
         }
         newTris = listTris.length;
       }
@@ -318,26 +335,17 @@ class Render3D extends Component {
         };
         // fillTriangle(cd.ctx, tri.pos1, tri.pos2, tri.pos3, tri.faceColor);
         wireframeTri(cd.ctx, tri.pos1, tri.pos2, tri.pos3, "black");
-
-        // this.texturedTriangle(
-        //   tri.pos1.x,
-        //   tri.pos1.y,
-        //   tri.tex1.x,
-        //   tri.tex1.y,
-        //   tri.tex1.w,
-        //   tri.pos2.x,
-        //   tri.pos2.y,
-        //   tri.tex2.x,
-        //   tri.tex2.y,
-        //   tri.tex2.w,
-        //   tri.pos3.x,
-        //   tri.pos3.y,
-        //   tri.tex3.x,
-        //   tri.tex3.y,
-        //   tri.tex3.w
-        // );
-
-        this.texturedTriangle(tri);
+        this.tTri(
+          tri.pos1,
+          tri.pos2,
+          tri.pos3,
+          tri.tex1,
+          tri.tex2,
+          tri.tex3,
+          1024,
+          1024
+        );
+        // this.texturedTriangle(tri);
       }
     }
 
@@ -347,248 +355,96 @@ class Render3D extends Component {
     }, 25);
   };
 
-  texturedTriangle = (triangle) => {
-    const tri = { ...triangle };
-    if (
-      !isNaN(tri.pos1.x) &&
-      !isNaN(tri.pos1.y) &&
-      !isNaN(tri.pos2.x) &&
-      !isNaN(tri.pos2.y) &&
-      !isNaN(tri.pos3.x) &&
-      !isNaN(tri.pos3.y) &&
-      !isNaN(tri.tex1.x) &&
-      !isNaN(tri.tex1.y) &&
-      !isNaN(tri.tex1.w) &&
-      !isNaN(tri.tex2.x) &&
-      !isNaN(tri.tex2.y) &&
-      !isNaN(tri.tex2.w) &&
-      !isNaN(tri.tex3.x) &&
-      !isNaN(tri.tex3.y) &&
-      !isNaN(tri.tex3.w)
-    ) {
-      const p = [tri.pos1, tri.pos2, tri.pos3];
-      const t = [tri.tex1, tri.tex2, tri.tex3];
+  tTri = (pos1, pos2, pos3, nTex1, nTex2, nTex3, tWidth, tHeight) => {
+    const p = [pos1, pos2, pos3];
 
-      const swap = (i1, i2, indexable) => {
-        const i1Copy = indexable[i1[0]][i1[1]];
-        indexable[parseInt(i1[0])][i1[1]] = indexable[i2[0]][i2[1]];
-        indexable[parseInt(i2[0])][i2[1]] = i1Copy;
+    const t = [nTex1, nTex2, nTex3];
+    t.forEach((pos) => {
+      pos.x *= tWidth;
+      pos.y *= tHeight;
+    });
+
+    const barycentric = (P, A, B, C) => {
+      const sub = (v1, v2) => {
+        return { x: v1.x - v2.x, y: v1.y - v2.y };
+      };
+      const dotProduct = (v1, v2) => {
+        return v1.x * v2.x + v1.y * v2.y;
       };
 
-      if (p[1].y < p[0].y) {
-        swap("0x", "1x", p);
-        swap("0y", "1y", p);
-        swap("0x", "1x", t);
-        swap("0y", "1y", t);
-        swap("0w", "1w", t);
-      }
+      const v0 = sub(B, A);
+      const v1 = sub(C, A);
+      const v2 = sub(P, A);
+      const d00 = dotProduct(v0, v0);
+      const d01 = dotProduct(v0, v1);
+      const d11 = dotProduct(v1, v1);
+      const d20 = dotProduct(v2, v0);
+      const d21 = dotProduct(v2, v1);
+      const denom = d00 * d11 - d01 * d01;
+      const v = (d11 * d20 - d01 * d21) / denom;
+      const w = (d00 * d21 - d01 * d20) / denom;
+      const u = 1 - v - w;
 
-      if (p[2].y < p[0].y) {
-        swap("0x", "2x", p);
-        swap("0y", "2y", p);
-        swap("0x", "2x", t);
-        swap("0y", "2y", t);
-        swap("0w", "2w", t);
-      }
+      return { x: u, y: v, w };
+    };
 
-      if (p[2].y < p[1].y) {
-        swap("1x", "2x", p);
-        swap("1y", "2y", p);
-        swap("1x", "2x", t);
-        swap("1y", "2y", t);
-        swap("1w", "2w", t);
-      }
-
-      const dp = [
-        {
-          x: p[1].x - p[0].x,
-          y: p[1].y - p[0].y,
-        },
-        {
-          x: p[2].x - p[0].x,
-          y: p[2].y - p[0].y,
-        },
-      ];
-
-      const dt = [
-        {
-          x: t[1].x - t[0].x,
-          y: t[1].y - t[0].y,
-          w: t[1].w - t[0].w,
-        },
-        {
-          x: t[2].x - t[0].x,
-          y: t[2].y - t[0].y,
-          w: t[2].w - t[0].w,
-        },
-      ];
-
-      let tex = { x: 0, y: 0, w: 0 };
-
-      const steps = {
-        ax: dp[0].y ? dp[0].x / Math.abs(dp[0].y) : 0,
-        bx: dp[1].y ? dp[1].x / Math.abs(dp[1].y) : 0,
-
-        x1: dp[0].y ? dt[0].x / Math.abs(dp[0].y) : 0,
-        y1: dp[0].y ? dt[0].y / Math.abs(dp[0].y) : 0,
-        w1: dp[0].y ? dt[0].w / Math.abs(dp[0].y) : 0,
-
-        x2: dp[1].y ? dt[1].x / Math.abs(dp[1].y) : 0,
-        y2: dp[1].y ? dt[1].y / Math.abs(dp[1].y) : 0,
-        w2: dp[1].y ? dt[1].w / Math.abs(dp[1].y) : 0,
+    const cartesian = (bar, A, B, C) => {
+      const mult = (v1, m) => {
+        return { x: v1.x * m, y: v1.y * m };
       };
+      const add = (v1, v2) => {
+        return { x: v1.x + v2.x, y: v1.y + v2.y };
+      };
+      return add(add(mult(A, bar.x), mult(B, bar.y)), mult(C, bar.w));
+    };
 
-      if (dp[0].y) {
-        for (let i = p[0].y; i <= p[1].y; i++) {
-          const swap2 = (i1, i2, indexable) => {
-            const i1Copy = indexable[i1];
-            indexable[i1] = indexable[i2];
-            indexable[i2] = i1Copy;
-          };
+    const isInTri = (pos, tri1, tri2, tri3) => {
+      const x = pos.x - tri1.x;
+      const y = pos.y - tri1.y;
+      const b = (tri2.x - tri1.x) * y - (tri2.y - tri1.y) * x > 0;
 
-          const o = {
-            ax: p[0].x + (i - p[0].y) * steps.ax,
-            bx: p[0].x + (i - p[0].y) * steps.bx,
+      if ((tri3.x - tri1.x) * y - (tri3.y - tri1.y) * x > 0 === b) {
+        return false;
+      }
+      if (
+        (tri3.x - tri2.x) * (pos.y - tri2.y) -
+          (tri3.y - tri2.y) * (pos.x - tri2.x) >
+          0 !==
+        b
+      ) {
+        return false;
+      }
+      return true;
+    };
 
-            sx: (t[0].x = (i - p[0].y) * steps.x1),
-            sy: (t[0].y = (i - p[0].y) * steps.y1),
-            sw: (t[0].w = (i - p[0].y) * steps.w1),
+    const sPos = { x: Infinity, y: Infinity };
+    const ePos = { x: -Infinity, y: -Infinity };
+    p.forEach((pos) => {
+      if (pos.x < sPos.x) {
+        sPos.x = pos.x;
+      }
+      if (pos.y < sPos.y) {
+        sPos.y = pos.y;
+      }
+      if (pos.x > ePos.x) {
+        ePos.x = pos.x;
+      }
+      if (pos.y > ePos.y) {
+        ePos.y = pos.y;
+      }
+    });
 
-            ex: (t[0].x = (i - p[0].y) * steps.x2),
-            ey: (t[0].y = (i - p[0].y) * steps.y2),
-            ew: (t[0].w = (i - p[0].y) * steps.w2),
-          };
-          debugger;
-
-          if (o.ax > o.bx) {
-            swap2("ax", "bx", o);
-            swap2("sx", "ex", o);
-            swap2("sy", "ey", o);
-            swap2("sw", "ew", o);
-          }
-
-          tex.x = o.sx;
-          tex.y = o.sy;
-          tex.w = o.sw;
-
-          let tStep = 1 / (o.bx - o.ax);
-          let _t = 0;
-
-          for (let j = o.ax; j < o.bx; j++) {
-            tex.x = (1 - _t) * o.sx + _t * o.ex;
-            tex.y = (1 - _t) * o.sy + _t * o.ey;
-            tex.w = (1 - _t) * o.sw + _t * o.ew;
-
-            const color = this.getPixelColor(
-              this.textureData,
-              Math.floor(tex.x / tex.w),
-              Math.floor(tex.y / tex.w)
-            );
-
-            this.canvasData.ctx.fillStyle = `rgba(${color.r},${color.g},${color.b},${color.a})`;
-            this.canvasData.ctx.fillRect(j, i, 1, 1);
-
-            _t += tStep;
-          }
+    for (let x = sPos.x; x < ePos.x; x++) {
+      for (let y = sPos.y; y < ePos.y; y++) {
+        if (isInTri({ x, y }, p[0], p[1], p[2])) {
+          const bar = barycentric({ x, y }, p[0], p[1], p[2]);
+          const car = cartesian(bar, t[0], t[1], t[2]);
+          const color = this.getPixelColor(this.textureData, car.x, car.y);
+          this.canvasData.ctx.fillStyle = `rgba(${color.r},${color.g},${color.b},${color.a})`;
+          this.canvasData.ctx.fillRect(x, y, 1, 1);
         }
       }
-
-      dp[0].x = p[2].x - p[1].x;
-      dp[0].y = p[2].y - p[1].y;
-
-      dt[0].x = t[2].x - t[1].x;
-      dt[0].y = t[2].y - t[1].y;
-      dt[0].w = t[2].w - t[1].w;
-
-      if (dp[0].y) {
-        steps.ax = dp[0].x / Math.abs(dp[0].y);
-      }
-      if (dp[1].y) {
-        steps.bx = dp[1].x / Math.abs(dp[1].y);
-      }
-
-      steps.x1 = 0;
-      steps.y1 = 0;
-      if (dp[0].y) {
-        steps.x1 = dt[0].x / Math.abs(dp[0].y);
-      }
-      if (dp[0].y) {
-        steps.y1 = dt[0].y / Math.abs(dp[0].y);
-      }
-      if (dp[0].y) {
-        steps.w1 = dt[0].w / Math.abs(dp[0].y);
-      }
-
-      if (dp[0].y) {
-        for (let i = p[1].y; i <= p[2].y; i++) {
-          const swap2 = (i1, i2, indexable) => {
-            const i1Copy = indexable[i1];
-            indexable[i1] = indexable[i2];
-            indexable[i2] = i1Copy;
-          };
-
-          const o = {
-            ax: p[1].x + (i - p[1].y) * steps.ax,
-            bx: p[0].x + (i - p[0].y) * steps.bx,
-
-            sx: (t[1].x = (i - p[1].y) * steps.x1),
-            sy: (t[1].y = (i - p[1].y) * steps.y1),
-            sw: (t[1].w = (i - p[1].y) * steps.w1),
-
-            ex: (t[0].x = (i - p[0].y) * steps.x2),
-            ey: (t[0].y = (i - p[0].y) * steps.y2),
-            ew: (t[0].w = (i - p[0].y) * steps.w2),
-          };
-
-          if (o.ax > o.bx) {
-            swap2("ax", "bx", o);
-            swap2("sx", "ex", o);
-            swap2("sy", "ey", o);
-            swap2("sw", "ew", o);
-          }
-
-          tex.x = o.sx;
-          tex.y = o.sy;
-          tex.w = o.sw;
-
-          const tStep = 1 / (o.bx - o.ax);
-          let _t = 0;
-          for (let j = o.ax; j < o.bx; j++) {
-            tex.x = (1 - _t) * o.sx + _t * o.ex;
-            tex.y = (1 - _t) * o.sy + _t * o.ey;
-            tex.w = (1 - _t) * o.sw + _t * o.ew;
-
-            const color = this.getPixelColor(
-              this.textureData,
-              Math.floor(tex.x / tex.w),
-              Math.floor(tex.y / tex.w)
-            );
-
-            this.canvasData.ctx.fillStyle = `rgba(${color.r},${color.g},${color.b},${color.a})`;
-            this.canvasData.ctx.fillRect(j, i, 1, 1);
-
-            _t += tStep;
-          }
-        }
-      }
-    } else {
-      debugger;
-      throw new Error(
-        "Missing Props From Triangle In texturedTriangle Function"
-      );
     }
-  };
-
-  getPixelColor = (imageData, x, y) => {
-    const color = { r: 1, g: 1, b: 1, a: 1 };
-
-    var index = (y * imageData.width + x) * 4;
-    color.r = imageData.data[index];
-    color.g = imageData.data[index + 1];
-    color.b = imageData.data[index + 2];
-    color.a = imageData.data[index + 3];
-
-    return color;
   };
 
   handleKeyPress = (e) => {

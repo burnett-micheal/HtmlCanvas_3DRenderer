@@ -1,6 +1,6 @@
 class VectorMaths {
     Vector2D = (x, y) => {
-        return ({x, y, w: 1});
+        return ({x, y});
     }
 
     Vector3D = (x, y, z) => {
@@ -71,7 +71,6 @@ class VectorMaths {
     }
 
     Triangle_ClipAgainstPlane = (planePos, planeNormal, inTri, outTri1, outTri2) => {
-
         planeNormal = this.Normalize(planeNormal);
 
         // Return signed shortest distance from point to plane, plane normal must be normalised
@@ -172,7 +171,7 @@ class VectorMaths {
 
 			// The second triangle is composed of one of the inside points, a
 			// new point determined by the intersection of the other side of the 
-			// triangle and the plane, and the newly created point above --------
+			// triangle and the plane, and the newly created point above
 			outTri2.pos1 = insidePoints[1];
             outTri2.tex1 = insideTex[1];
 			outTri2.pos2 = outTri1.pos3;
@@ -184,6 +183,7 @@ class VectorMaths {
             outTri2.tex3.x = t*(outsideTex[0].x - insideTex[1].x) + insideTex[1].x;
             outTri2.tex3.y = t*(outsideTex[0].y - insideTex[1].y) + insideTex[1].y;
             outTri2.tex3.w = t*(outsideTex[0].w - insideTex[1].w) + insideTex[1].w;
+            debugger;
 
 			return 2; // Return two newly formed triangles which form a quad
         }
